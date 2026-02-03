@@ -7,7 +7,9 @@ const PORT = process.env.PORT || 8787;
 
 // In-memory store (MVP0)
 const users = new Map(); // userId -> { userId, name }
-const conversations = new Map(); // convoId -> { convoId, members:[userId], messages:[...] }
+// conversations includes DMs and rooms
+// convoId -> { convoId, kind:'dm'|'room', members:[userId], messages:[...], ... }
+const conversations = new Map();
 
 function ensureUser(userId) {
   const u = users.get(userId);
@@ -25,6 +27,34 @@ function getOrCreateDM(a, b) {
   const convo = { convoId, kind: 'dm', key, members: [a, b], messages: [] };
   conversations.set(convoId, convo);
   return convo;
+}
+
+function createRoom({ name, createdBy }) {
+  if (!name || typeof name !== 'string') {
+    throw Object.assign(new Error('missing name'), { status: 400 });
+  }
+  const trimmed = name.trim();
+  if (!trimmed) throw Object.assign(new Error('missing name'), { status: 400 });
+  if (trimmed.length > 80) throw Object.assign(new Error('name too long'), { status: 400 });
+
+  const convoId = nanoid();
+  const room = {
+    convoId,
+    kind: 'room',
+    name: trimmed,
+    createdBy,
+    createdAt: Date.now(),
+    members: [createdBy],
+    messages: [],
+  };
+  conversations.set(convoId, room);
+  return room;
+}
+
+function ensureRoom(convoId) {
+  const c = conversations.get(convoId);
+  if (!c || c.kind !== 'room') throw Object.assign(new Error('room not found'), { status: 404 });
+  return c;
 }
 
 // Seed two dev users
@@ -63,6 +93,47 @@ app.post('/dm', (req, res) => {
   ensureUser(otherUserId);
   const convo = getOrCreateDM(userId, otherUserId);
   res.json({ convoId: convo.convoId });
+});
+
+// Rooms (very small MVP)
+app.post('/rooms', (req, res) => {
+  const userId = req.userId;
+  if (!userId) return res.status(401).json({ error: 'missing x-user-id' });
+  ensureUser(userId);
+
+  const { name } = req.body || {};
+  try {
+    const room = createRoom({ name, createdBy: userId });
+    res.json({ roomId: room.convoId, name: room.name });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message || 'error' });
+  }
+});
+
+// idempotent join (open room model)
+app.post('/rooms/:roomId/join', (req, res) => {
+  const userId = req.userId;
+  if (!userId) return res.status(401).json({ error: 'missing x-user-id' });
+  ensureUser(userId);
+
+  try {
+    const room = ensureRoom(req.params.roomId);
+    if (!room.members.includes(userId)) room.members.push(userId);
+    res.json({ roomId: room.convoId, name: room.name, members: room.members });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message || 'error' });
+  }
+});
+
+app.get('/rooms', (req, res) => {
+  const userId = req.userId;
+  if (!userId) return res.status(401).json({ error: 'missing x-user-id' });
+  ensureUser(userId);
+
+  const rooms = Array.from(conversations.values())
+    .filter(c => c.kind === 'room')
+    .map(r => ({ roomId: r.convoId, name: r.name, memberCount: r.members.length }));
+  res.json(rooms);
 });
 
 app.get('/conversations', (req, res) => {

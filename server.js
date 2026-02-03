@@ -1,7 +1,12 @@
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
-const { nanoid } = require('nanoid');
+const crypto = require('node:crypto');
+
+function nanoid(size = 12) {
+  // simple, url-safe id for MVP
+  return crypto.randomBytes(size).toString('base64url');
+}
 
 const PORT = process.env.PORT || 8787;
 

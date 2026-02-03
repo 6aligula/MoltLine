@@ -224,7 +224,7 @@ wss.on('connection', (ws, req) => {
   ws.send(JSON.stringify({ type: 'hello', data: { userId } }));
 });
 
-server.listen(PORT, () => {
-  console.log(`MoldLine server listening on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`MoldLine server listening on http://0.0.0.0:${PORT}`);
   console.log('Dev users: a, b');
 });

@@ -1,4 +1,9 @@
 node_modules/
+dist/
 .env
 *.log
 .DS_Store
+web/node_modules/
+web/dist/
+moldline/node_modules/
+moldline-api-v2/node_modules/

@@ -1,0 +1,220 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import './App.css';
+import { apiFetch } from './lib/api';
+import { connectWs } from './lib/ws';
+
+type Conversation = { convoId: string; kind: 'dm' | 'room'; members: string[] };
+
+type Message = {
+  messageId: string;
+  convoId: string;
+  from: string;
+  text: string;
+  ts: number;
+};
+
+function fmtTs(ts: number) {
+  const d = new Date(ts);
+  return d.toLocaleString();
+}
+
+export default function App() {
+  const [userId, setUserId] = useState<string>('a');
+  const [connected, setConnected] = useState(false);
+  const [users, setUsers] = useState<Array<{ userId: string; name: string }>>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [text, setText] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const wsRef = useRef<WebSocket | null>(null);
+
+  const activeConvo = useMemo(
+    () => conversations.find(c => c.convoId === activeConvoId) || null,
+    [conversations, activeConvoId],
+  );
+
+  async function refreshUsers() {
+    const u = await apiFetch<Array<{ userId: string; name: string }>>('/users');
+    setUsers(u);
+  }
+
+  async function refreshConversations() {
+    const c = await apiFetch<Conversation[]>('/conversations', { userId });
+    setConversations(c);
+    if (!activeConvoId && c[0]) setActiveConvoId(c[0].convoId);
+  }
+
+  async function refreshMessages(convoId: string) {
+    const m = await apiFetch<Message[]>(`/conversations/${convoId}/messages`, { userId });
+    setMessages(m);
+  }
+
+  useEffect(() => {
+    refreshUsers().catch(e => setError(String(e.message || e)));
+  }, []);
+
+  useEffect(() => {
+    setError(null);
+    refreshConversations().catch(e => setError(String(e.message || e)));
+
+    // reconnect WS on user change
+    try { wsRef.current?.close(); } catch {}
+    wsRef.current = connectWs({
+      userId,
+      onOpen: () => setConnected(true),
+      onClose: () => setConnected(false),
+      onMessage: (msg) => {
+        if (msg.type === 'message') {
+          const m = msg.data as Message;
+          // if message belongs to current convo, append
+          setMessages(prev => {
+            if (prev.some(x => x.messageId === m.messageId)) return prev;
+            if (activeConvoId && m.convoId !== activeConvoId) return prev;
+            return [...prev, m].sort((a, b) => a.ts - b.ts);
+          });
+        }
+      },
+    });
+
+    return () => {
+      try { wsRef.current?.close(); } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  useEffect(() => {
+    if (!activeConvoId) return;
+    refreshMessages(activeConvoId).catch(e => setError(String(e.message || e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConvoId, userId]);
+
+  async function createDM(otherUserId: string) {
+    setError(null);
+    const out = await apiFetch<{ convoId: string }>('/dm', {
+      method: 'POST',
+      userId,
+      body: JSON.stringify({ otherUserId }),
+    });
+    await refreshConversations();
+    setActiveConvoId(out.convoId);
+  }
+
+  async function send() {
+    if (!activeConvoId) return;
+    const t = text.trim();
+    if (!t) return;
+    setText('');
+    setError(null);
+    const msg = await apiFetch<Message>(`/conversations/${activeConvoId}/messages`, {
+      method: 'POST',
+      userId,
+      body: JSON.stringify({ text: t }),
+    });
+    setMessages(prev => [...prev, msg].sort((a, b) => a.ts - b.ts));
+  }
+
+  return (
+    <div style={{ maxWidth: 980, margin: '0 auto', padding: 16 }}>
+      <h2>MoldLine chat (MVP)</h2>
+
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label>
+          User:
+          <select value={userId} onChange={(e) => setUserId(e.target.value)} style={{ marginLeft: 8 }}>
+            <option value="a">a</option>
+            <option value="b">b</option>
+          </select>
+        </label>
+        <span style={{ opacity: 0.8 }}>WS: {connected ? 'connected' : 'disconnected'}</span>
+        <button onClick={() => refreshConversations()}>Refresh convos</button>
+        {error ? <span style={{ color: 'salmon' }}>{error}</span> : null}
+      </div>
+
+      <hr style={{ margin: '16px 0' }} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 16 }}>
+        <div>
+          <h3>Users</h3>
+          <ul>
+            {users.map(u => (
+              <li key={u.userId}>
+                {u.userId} — {u.name}{' '}
+                {u.userId !== userId ? (
+                  <button onClick={() => createDM(u.userId)} style={{ marginLeft: 8 }}>
+                    DM
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+
+          <h3>Conversations</h3>
+          <ul>
+            {conversations.map(c => (
+              <li key={c.convoId}>
+                <button
+                  onClick={() => setActiveConvoId(c.convoId)}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    fontWeight: c.convoId === activeConvoId ? 700 : 400,
+                  }}
+                >
+                  {c.kind} — {c.convoId.slice(0, 6)}…
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h3>Chat</h3>
+          {activeConvo ? (
+            <div style={{ opacity: 0.8, marginBottom: 8 }}>
+              Active: {activeConvo.kind} / {activeConvo.convoId}
+            </div>
+          ) : (
+            <div style={{ opacity: 0.8 }}>No conversation selected</div>
+          )}
+
+          <div
+            style={{
+              border: '1px solid #333',
+              borderRadius: 8,
+              padding: 12,
+              height: 420,
+              overflow: 'auto',
+              background: '#0e0e0e',
+            }}
+          >
+            {messages.map(m => (
+              <div key={m.messageId} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>
+                  {m.from} · {fmtTs(m.ts)}
+                </div>
+                <div style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Write a message…"
+              style={{ flex: 1 }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') send().catch(err => setError(String(err.message || err)));
+              }}
+            />
+            <button onClick={() => send().catch(err => setError(String(err.message || err)))} disabled={!activeConvoId}>
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

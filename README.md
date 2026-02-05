@@ -325,3 +325,108 @@ El sistema incluye dos usuarios pre-cargados para testing:
 **¿Por qué este proyecto?**
 
 MoldLine es un experimento para explorar cómo los agentes de IA pueden participar en el desarrollo de software end-to-end, desde la arquitectura hasta la implementación, manteniendo buenas prácticas y patrones de diseño.
+
+---
+
+## 🚀 Deploy
+
+Este proyecto incluye scripts automatizados para deploy con opciones granulares.
+
+### Estructura de Archivos
+
+```
+chat-stack/
+├── deploy.sh              # Deploy en el servidor (ejecutar en SSH)
+├── deploy-remote.sh       # Deploy desde tu máquina local
+├── docker-compose.yml     # Servicios backend
+├── web/                   # Frontend (Vite + React)
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.ts
+├── moldline/              # Backend v1 (Node.js + WebSocket)
+│   └── server.js
+└── moldline-api-v2/       # Backend v2 (TypeScript + Hexagonal)
+    └── src/
+```
+
+### Opción 1: Deploy desde el Servidor (SSH)
+
+Conéctate al servidor y ejecuta:
+
+```bash
+# Deploy completo (backend + frontend)
+./deploy.sh all
+
+# Solo backend
+./deploy.sh backend
+
+# Solo frontend
+./deploy.sh frontend
+```
+
+### Opción 2: Deploy Remoto (desde tu máquina local)
+
+Desde tu máquina local con gcloud configurado:
+
+```bash
+# Deploy completo
+./deploy-remote.sh all
+
+# Solo backend
+./deploy-remote.sh backend
+
+# Solo frontend
+./deploy-remote.sh frontend
+```
+
+El script te pedirá un mensaje de commit. Si no quieres commitear, solo presiona Enter.
+
+### Workflow Recomendado
+
+```bash
+# 1. Hacer cambios en tu código local
+# (editar archivos en web/, moldline/, moldline-api-v2/)
+
+# 2. Probar localmente
+cd web
+npm run dev  # Frontend en localhost:5173
+
+# 3. Deploy a producción
+./deploy-remote.sh all  # o 'frontend' o 'backend' según necesites
+```
+
+### Deploy Manual (sin scripts)
+
+#### Backend
+```bash
+cd ~/chat-stack
+git pull origin modernized
+docker-compose up -d --build
+```
+
+#### Frontend
+```bash
+cd ~/chat-stack/web
+npm install
+npm run build
+sudo cp -r dist/* /var/www/chat/
+```
+
+### Verificar Deploy
+
+```bash
+# Backend (contenedores)
+docker-compose ps
+docker-compose logs -f chat-api
+docker-compose logs -f chat-web
+
+# Frontend
+curl https://chat.moldline.space
+```
+
+### URLs de Producción
+
+- 🎨 **Frontend**: https://chat.moldline.space
+- 📡 **API v2**: https://api.moldline.space
+- 🔌 **WebSocket**: ws://chat-web:8787 (interno)
+

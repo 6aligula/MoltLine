@@ -35,7 +35,11 @@ MoltLine/
 │       ├── ports/        # Interfaces
 │       └── bootstrap/    # Configuración
 │
-├── docker-compose.yml    # Orquestación de servicios
+├── docker-compose.yml    # API + Web (local)
+├── docker-compose.prod.yml  # Override para producción (web-proxy)
+├── web/
+│   ├── Dockerfile        # Build Vite + nginx
+│   └── nginx.conf
 ├── deploy.sh             # Scripts de deploy
 └── .nvmrc                # Node 22 (nvm use)
 ```
@@ -74,12 +78,14 @@ Abre http://localhost:5173 en el navegador. Usuarios de prueba: `a` y `b`.
 ### Levantar con Docker
 
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
 
 Los servicios estarán disponibles en:
-- **Web UI**: según configuración (p. ej. localhost:5173)
+- **Web**: http://localhost:5173
 - **API**: http://localhost:18000
+
+Para producción (detrás de reverse proxy): `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`
 
 ## 📡 API Reference
 

@@ -1,0 +1,22 @@
+# Override para producción: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Requiere: docker network create web-proxy (si no existe)
+
+services:
+  api:
+    build: {}
+    ports: []  # Sin puertos expuestos; el proxy en web-proxy enruta a chat-api:18000
+    networks:
+      - web-proxy
+
+  web:
+    build:
+      args:
+        VITE_API_BASE_URL: https://api.moldline.space
+        VITE_WS_URL: wss://api.moldline.space
+    ports: []  # Sin puertos; el proxy enruta a chat-web:80
+    networks:
+      - web-proxy
+
+networks:
+  web-proxy:
+    external: true

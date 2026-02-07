@@ -29,6 +29,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const connectionIdRef = useRef(0);
 
   const activeConvo = useMemo(
     () => conversations.find(c => c.convoId === activeConvoId) || null,
@@ -59,27 +60,36 @@ export default function App() {
     setError(null);
     refreshConversations().catch(e => setError(String(e.message || e)));
 
-    // reconnect WS on user change
-    try { wsRef.current?.close(); } catch {}
-    wsRef.current = connectWs({
+    const myId = ++connectionIdRef.current;
+    const ws = connectWs({
       userId,
-      onOpen: () => setConnected(true),
-      onClose: () => setConnected(false),
+      onOpen: () => {
+        if (connectionIdRef.current !== myId) {
+          ws.close();
+          return;
+        }
+        setConnected(true);
+      },
+      onClose: () => {
+        if (connectionIdRef.current !== myId) return;
+        setConnected(false);
+      },
       onMessage: (msg) => {
+        if (connectionIdRef.current !== myId) return;
         if (msg.type === 'message') {
           const m = msg.data as Message;
-          // if message belongs to current convo, append
           setMessages(prev => {
-            if (prev.some(x => x.messageId === m.messageId)) return prev;
             if (activeConvoId && m.convoId !== activeConvoId) return prev;
-            return [...prev, m].sort((a, b) => a.ts - b.ts);
+            const without = prev.filter(x => x.messageId !== m.messageId);
+            return [...without, m].sort((a, b) => a.ts - b.ts);
           });
         }
       },
     });
+    wsRef.current = ws;
 
     return () => {
-      try { wsRef.current?.close(); } catch {}
+      if (ws.readyState === WebSocket.OPEN) ws.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -112,7 +122,10 @@ export default function App() {
       userId,
       body: JSON.stringify({ text: t }),
     });
-    setMessages(prev => [...prev, msg].sort((a, b) => a.ts - b.ts));
+    setMessages(prev => {
+      const without = prev.filter(x => x.messageId !== msg.messageId);
+      return [...without, msg].sort((a, b) => a.ts - b.ts);
+    });
   }
 
   return (
@@ -189,7 +202,9 @@ export default function App() {
               background: '#0e0e0e',
             }}
           >
-            {messages.map(m => (
+            {[...new Map(messages.map(m => [m.messageId, m])).values()]
+              .sort((a, b) => a.ts - b.ts)
+              .map(m => (
               <div key={m.messageId} style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 12, opacity: 0.7 }}>
                   {m.from} · {fmtTs(m.ts)}

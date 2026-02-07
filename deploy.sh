@@ -26,13 +26,13 @@ deploy_backend() {
     echo "  → Pulling latest code..."
     git pull origin modernized
     
-    # Rebuild and restart containers
+    # Rebuild and restart containers (usa prod: web-proxy, URLs producción)
     echo "  → Rebuilding Docker containers..."
-    docker-compose up -d --build
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
     
     # Verificar estado
     echo "  → Checking container status..."
-    docker-compose ps
+    docker compose ps
     
     echo -e "${GREEN}✅ Backend deployed successfully!${NC}"
     echo ""

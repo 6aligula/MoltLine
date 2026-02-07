@@ -1,0 +1,70 @@
+# Nginx reverse proxy para MoldLine (producción)
+# Copiar a /etc/nginx/sites-available/ y enlazar en sites-enabled/
+# SSL con Certbot: sudo certbot --nginx -d chat.moldline.space -d api.moldline.space
+
+# Requiere que Nginx esté en la red Docker web-proxy para alcanzar los contenedores:
+#   docker network connect web-proxy <container_nginx>
+# O que los contenedores expongan puertos y usar 127.0.0.1:5173 y 127.0.0.1:18000
+
+upstream moldline_web {
+    server chat-web:80;   # Si Nginx en Docker: nombre del contenedor
+    # server 127.0.0.1:5173;  # Si Nginx en host y Docker expone puerto 5173
+}
+
+upstream moldline_api {
+    server chat-api:18000;   # Si Nginx en Docker
+    # server 127.0.0.1:18000;  # Si Nginx en host
+}
+
+# Frontend - chat.moldline.space
+server {
+    listen 80;
+    server_name chat.moldline.space;
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name chat.moldline.space;
+
+    ssl_certificate /etc/letsencrypt/live/chat.moldline.space/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/chat.moldline.space/privkey.pem;
+
+    location / {
+        proxy_pass http://moldline_web;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# API - api.moldline.space (REST + WebSocket)
+server {
+    listen 80;
+    server_name api.moldline.space;
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name api.moldline.space;
+
+    ssl_certificate /etc/letsencrypt/live/api.moldline.space/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.moldline.space/privkey.pem;
+
+    location / {
+        proxy_pass http://moldline_api;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

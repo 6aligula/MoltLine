@@ -57,4 +57,4 @@ echo "✅ Deploy completado!"
 URL=$(gcloud run services describe ${SERVICE_NAME} --region ${REGION} --project ${PROJECT_ID} --format='value(status.url)')
 echo ""
 echo "🌐 API URL: ${URL}"
-echo "   Para el frontend .env: VITE_API_BASE_URL=${URL}  VITE_WS_URL=${URL/https/wss}/ws"
+echo "   Para el frontend .env: VITE_API_BASE_URL=${URL}  VITE_WS_URL=${URL/https/wss}"

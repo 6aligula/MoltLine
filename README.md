@@ -117,7 +117,7 @@ El frontend usa dos variables en `web/.env`:
 | Variable | Descripción |
 |----------|-------------|
 | `VITE_API_BASE_URL` | URL base de la API (ej. `https://moldline-api-xxx.run.app`) |
-| `VITE_WS_URL` | URL del WebSocket (mismo host, path `/ws`) |
+| `VITE_WS_URL` | URL base del WebSocket (ej. `wss://xxx.run.app`; el código añade `/ws`) |
 
 **Ejemplo para desarrollo local:**
 ```env
@@ -128,7 +128,7 @@ VITE_WS_URL=ws://localhost:18000
 **Ejemplo para API en Cloud Run:**
 ```env
 VITE_API_BASE_URL=https://moldline-api-xxx.run.app
-VITE_WS_URL=wss://moldline-api-xxx.run.app/ws
+VITE_WS_URL=wss://moldline-api-xxx.run.app
 ```
 
 Sustituye `moldline-api-xxx.run.app` por la URL que muestra el script de deploy. Las URLs se incrustan en el build; si cambias la API, hay que recompilar el frontend.

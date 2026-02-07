@@ -17,16 +17,17 @@
 
 ### 🏗️ Arquitectura
 
-El proyecto está organizado en una estructura multi-stack con Docker Compose:
+El proyecto está organizado en dos servicios principales:
 
 ```
-chat-stack/
-├── moldline/              # Frontend + Backend v1 (Node.js + Express)
-│   ├── server.js         # Servidor WebSocket + REST API
-│   ├── web/              # Interfaz web
-│   └── scripts/          # Utilidades y tests
+MoltLine/
+├── web/                  # Frontend (Vite + React)
+│   ├── src/
+│   │   ├── App.tsx       # Interfaz del chat
+│   │   └── lib/          # api.ts, ws.ts — cliente API y WebSocket
+│   └── .env              # VITE_API_BASE_URL, VITE_WS_URL (crear en local)
 │
-├── moldline-api-v2/      # Backend v2 (TypeScript + Arquitectura Hexagonal)
+├── moldline-api-v2/      # Backend (TypeScript + Arquitectura Hexagonal)
 │   └── src/
 │       ├── domain/       # Entidades y tipos del dominio
 │       ├── application/  # Casos de uso
@@ -34,48 +35,51 @@ chat-stack/
 │       ├── ports/        # Interfaces
 │       └── bootstrap/    # Configuración
 │
-└── docker-compose.yml    # Orquestación de servicios
+├── docker-compose.yml    # Orquestación de servicios
+├── deploy.sh             # Scripts de deploy
+└── .nvmrc                # Node 22 (nvm use)
 ```
 
 ## 🚀 Inicio Rápido
 
 ### Prerequisitos
-- Docker & Docker Compose
-- Node.js 18+ (para desarrollo local)
+- Node.js 22+ (recomendado: `nvm install` y `nvm use` si usas nvm — hay `.nvmrc`)
+- Docker & Docker Compose (opcional, para producción)
+
+### Desarrollo Local
+
+Si usas nvm: `nvm use` (lee la versión del `.nvmrc`).
+
+Necesitas levantar **dos terminales**:
+
+**Terminal 1 — API:**
+```bash
+cd moldline-api-v2
+npm install
+npm run dev
+# API en http://localhost:18000
+```
+
+**Terminal 2 — Web:**
+```bash
+cd web
+npm install
+cp .env.example .env   # o crea .env con las URLs de la API
+npm run dev
+# Web en http://localhost:5173
+```
+
+Abre http://localhost:5173 en el navegador. Usuarios de prueba: `a` y `b`.
 
 ### Levantar con Docker
 
 ```bash
-# Clonar el repositorio
-git clone <repo-url>
-cd chat-stack
-
-# Iniciar los servicios
 docker-compose up -d
-
-# Verificar que los servicios estén corriendo
-docker-compose ps
 ```
 
 Los servicios estarán disponibles en:
-- **Web UI**: http://localhost:8787
-- **API v2**: http://localhost:18000
-
-### Desarrollo Local
-
-#### Backend v1 (moldline)
-```bash
-cd moldline
-npm install
-npm run dev  # Servidor en puerto 8787
-```
-
-#### Backend v2 (moldline-api-v2)
-```bash
-cd moldline-api-v2
-npm install
-npm run dev  # API en puerto 18000
-```
+- **Web UI**: según configuración (p. ej. localhost:5173)
+- **API**: http://localhost:18000
 
 ## 📡 API Reference
 
@@ -120,25 +124,25 @@ GET /rooms
 
 #### Mensajes
 ```http
-POST /messages
-# Headers: x-user-id
-# Body: { "convoId": "string", "text": "string" }
-# Envía un mensaje a una conversación
-
 GET /conversations
 # Headers: x-user-id
 # Lista todas las conversaciones del usuario
 
-GET /conversations/:convoId
+GET /conversations/:convoId/messages
 # Headers: x-user-id
-# Obtiene detalles de una conversación
+# Lista mensajes de una conversación
+
+POST /conversations/:convoId/messages
+# Headers: x-user-id
+# Body: { "text": "string" }
+# Envía un mensaje
 ```
 
 ### WebSocket
 
 #### Conexión
 ```javascript
-const ws = new WebSocket('ws://localhost:8787?userId=<userId>');
+const ws = new WebSocket('ws://localhost:18000/ws?userId=<userId>');
 
 ws.onmessage = (event) => {
   const { type, data } = JSON.parse(event.data);
@@ -160,9 +164,8 @@ ws.onmessage = (event) => {
 ## 🏛️ Arquitectura Técnica
 
 ### Stack Tecnológico
-- **Backend v1**: Node.js + Express + WebSocket (ws)
-- **Backend v2**: TypeScript + Arquitectura Hexagonal + Express
-- **Frontend**: HTML/CSS/JavaScript vanilla (Web UI simple)
+- **Backend**: TypeScript + Arquitectura Hexagonal + Express + WebSocket
+- **Frontend**: Vite + React + TypeScript
 - **Base de datos**: In-memory (Map/Set) - MVP
 - **Contenedores**: Docker + Docker Compose
 - **Validación**: Zod
@@ -230,14 +233,15 @@ ws.onmessage = (event) => {
 
 ### Variables de Entorno
 
-#### moldline (Backend v1)
-```env
-PORT=8787
-```
-
-#### moldline-api-v2 (Backend v2)
+#### moldline-api-v2 (Backend)
 ```env
 PORT=18000
+```
+
+#### web (Frontend)
+```env
+VITE_API_BASE_URL=http://localhost:18000
+VITE_WS_URL=ws://localhost:18000
 ```
 
 ### Docker Compose
@@ -252,10 +256,10 @@ networks:
 
 ## 🧪 Testing
 
-### Smoke Test WebSocket
+Para verificar la API:
 ```bash
-cd moldline
-node scripts/ws_smoke_test.js
+curl http://localhost:18000/health
+curl -H "x-user-id: a" http://localhost:18000/conversations
 ```
 
 ## 📝 Estado del Proyecto
@@ -315,10 +319,7 @@ El sistema incluye dos usuarios pre-cargados para testing:
 
 ## 🔗 Links Útiles
 
-- [Documentación de Arquitectura](./moldline/ARCHITECTURE.md)
-- [Log de Desarrollo](./moldline/DEVLOG.md)
-- [Roadmap Detallado](./moldline/ROADMAP.md)
-- [TODO List](./moldline/TODO.md)
+- [Deploy del Frontend](./web/README-deploy.md)
 
 ---
 
@@ -335,7 +336,7 @@ Este proyecto incluye scripts automatizados para deploy con opciones granulares.
 ### Estructura de Archivos
 
 ```
-chat-stack/
+MoltLine/
 ├── deploy.sh              # Deploy en el servidor (ejecutar en SSH)
 ├── deploy-remote.sh       # Deploy desde tu máquina local
 ├── docker-compose.yml     # Servicios backend
@@ -343,9 +344,7 @@ chat-stack/
 │   ├── src/
 │   ├── package.json
 │   └── vite.config.ts
-├── moldline/              # Backend v1 (Node.js + WebSocket)
-│   └── server.js
-└── moldline-api-v2/       # Backend v2 (TypeScript + Hexagonal)
+└── moldline-api-v2/       # Backend (TypeScript + Hexagonal)
     └── src/
 ```
 
@@ -385,11 +384,12 @@ El script te pedirá un mensaje de commit. Si no quieres commitear, solo presion
 
 ```bash
 # 1. Hacer cambios en tu código local
-# (editar archivos en web/, moldline/, moldline-api-v2/)
+# (editar archivos en web/ y moldline-api-v2/)
 
 # 2. Probar localmente
-cd web
-npm run dev  # Frontend en localhost:5173
+# Terminal 1: cd moldline-api-v2 && npm run dev
+# Terminal 2: cd web && npm run dev
+# Abrir http://localhost:5173
 
 # 3. Deploy a producción
 ./deploy-remote.sh all  # o 'frontend' o 'backend' según necesites
@@ -428,5 +428,5 @@ curl https://chat.moldline.space
 
 - 🎨 **Frontend**: https://chat.moldline.space
 - 📡 **API v2**: https://api.moldline.space
-- 🔌 **WebSocket**: ws://chat-web:8787 (interno)
+- 🔌 **WebSocket**: wss://api.moldline.space/ws
 

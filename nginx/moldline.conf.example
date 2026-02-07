@@ -12,8 +12,8 @@ upstream moldline_web {
 }
 
 upstream moldline_api {
-    server chat-api:18000;   # Si Nginx en Docker
-    # server 127.0.0.1:18000;  # Si Nginx en host
+    server chat-api:8080;   # Si Nginx en Docker
+    # server 127.0.0.1:18000;  # Si Nginx en host (mapear 18000:8080)
 }
 
 # Frontend - chat.moldline.space

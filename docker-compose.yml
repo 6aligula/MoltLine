@@ -2,13 +2,12 @@ services:
   api:
     build:
       context: ./moldline-api-v2
-      dockerfile: Dockerfile.api
     container_name: chat-api
     restart: unless-stopped
     environment:
-      - PORT=18000
+      - PORT=8080
     ports:
-      - "127.0.0.1:18000:18000"
+      - "127.0.0.1:18000:8080"
     networks:
       - moldline
 

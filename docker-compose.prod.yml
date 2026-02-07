@@ -4,7 +4,7 @@
 services:
   api:
     build: {}
-    ports: []  # Sin puertos expuestos; el proxy en web-proxy enruta a chat-api:18000
+    ports: []  # Sin puertos; el proxy enruta a chat-api:8080
     networks:
       - web-proxy
 

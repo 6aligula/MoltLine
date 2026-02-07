@@ -18,6 +18,6 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 COPY --from=build /app/dist ./dist
 COPY --from=deps /app/node_modules ./node_modules
-EXPOSE 18000
-ENV PORT=18000
+EXPOSE 8080
+ENV PORT=8080
 CMD ["node","dist/index.js"]

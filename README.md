@@ -28,6 +28,7 @@ MoltLine/
 │   └── .env              # VITE_API_BASE_URL, VITE_WS_URL (crear en local)
 │
 ├── moldline-api-v2/      # Backend (TypeScript + Arquitectura Hexagonal)
+│   ├── deploy-cloudrun.sh  # Deploy a Google Cloud Run
 │   └── src/
 │       ├── domain/       # Entidades y tipos del dominio
 │       ├── application/  # Casos de uso
@@ -77,6 +78,15 @@ npm run dev
 
 Abre http://localhost:5173 en el navegador. Usuarios de prueba: `a` y `b`.
 
+**Probar frontend local contra API en Cloud Run:**
+```bash
+cd web
+cp .env.cloud.example .env.cloud
+# Edita .env.cloud y pon la URL de tu API (la que muestra deploy-cloudrun.sh)
+npm run dev:cloud
+# Web en http://localhost:5173, conectada a la API en Cloud Run
+```
+
 ### Levantar con Docker
 
 ```bash
@@ -88,6 +98,42 @@ Los servicios estarán disponibles en:
 - **API**: http://localhost:18000
 
 Para producción (detrás de Nginx): `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`
+
+### Backend en Google Cloud Run
+
+Para desplegar solo la API (sin servidor propio):
+
+```bash
+cd moldline-api-v2
+./deploy-cloudrun.sh
+```
+
+Tras el deploy, el script muestra la URL de la API (ej. `https://moldline-api-xxx.run.app`).
+
+### Conectar el frontend a la API
+
+El frontend usa dos variables en `web/.env`:
+
+| Variable | Descripción |
+|----------|-------------|
+| `VITE_API_BASE_URL` | URL base de la API (ej. `https://moldline-api-xxx.run.app`) |
+| `VITE_WS_URL` | URL del WebSocket (mismo host, path `/ws`) |
+
+**Ejemplo para desarrollo local:**
+```env
+VITE_API_BASE_URL=http://localhost:18000
+VITE_WS_URL=ws://localhost:18000
+```
+
+**Ejemplo para API en Cloud Run:**
+```env
+VITE_API_BASE_URL=https://moldline-api-xxx.run.app
+VITE_WS_URL=wss://moldline-api-xxx.run.app/ws
+```
+
+Sustituye `moldline-api-xxx.run.app` por la URL que muestra el script de deploy. Las URLs se incrustan en el build; si cambias la API, hay que recompilar el frontend.
+
+Para **probar en local** el frontend contra la API en Cloud: `npm run dev:cloud` (usa `web/.env.cloud`).
 
 ## 📡 API Reference
 

@@ -12,43 +12,42 @@ export function makeUseCases(deps: {
   id: () => string;
   now: () => number;
 }) {
-  async function ensureUser(userId: UserId) {
-    const u = await deps.usersRepo.get(userId);
-    if (!u) throw badRequest('unknown user');
-    return u;
+  /** Lazy registration: crea el usuario en el store si no existe (Auth API es fuente de verdad). */
+  async function ensureUser(userId: UserId, name?: string) {
+    return deps.usersRepo.ensureExists(userId, name);
   }
 
-  async function createDM(params: { userId: UserId; otherUserId: UserId }) {
-    await ensureUser(params.userId);
+  async function createDM(params: { userId: UserId; otherUserId: UserId; userName?: string }) {
+    await ensureUser(params.userId, params.userName);
     await ensureUser(params.otherUserId);
     const convo = await deps.convosRepo.getOrCreateDM(params.userId, params.otherUserId);
     return { convoId: convo.convoId };
   }
 
-  async function createRoom(params: { userId: UserId; name: string }) {
-    await ensureUser(params.userId);
+  async function createRoom(params: { userId: UserId; name: string; userName?: string }) {
+    await ensureUser(params.userId, params.userName);
     const name = z.string().trim().min(1).max(80).parse(params.name);
     const room = await deps.convosRepo.createRoom({ name, createdBy: params.userId });
     return { roomId: room.convoId, name: room.name };
   }
 
-  async function joinRoom(params: { userId: UserId; roomId: ConversationId }) {
-    await ensureUser(params.userId);
+  async function joinRoom(params: { userId: UserId; roomId: ConversationId; userName?: string }) {
+    await ensureUser(params.userId, params.userName);
     const room = await deps.convosRepo.addMember(params.roomId, params.userId);
     if (room.kind !== 'room') throw notFound('room not found');
     return { roomId: room.convoId, name: room.name, members: room.members };
   }
 
-  async function listRooms(params: { userId: UserId }) {
-    await ensureUser(params.userId);
+  async function listRooms(params: { userId: UserId; userName?: string }) {
+    await ensureUser(params.userId, params.userName);
     const rooms = (await deps.convosRepo.listForUser(params.userId))
       .filter(c => c.kind === 'room')
       .map(r => ({ roomId: r.convoId, name: r.name, memberCount: r.members.length }));
     return rooms;
   }
 
-  async function listConversations(params: { userId: UserId }) {
-    await ensureUser(params.userId);
+  async function listConversations(params: { userId: UserId; userName?: string }) {
+    await ensureUser(params.userId, params.userName);
     const list = (await deps.convosRepo.listForUser(params.userId)).map(c => ({
       convoId: c.convoId,
       kind: c.kind,
@@ -57,15 +56,15 @@ export function makeUseCases(deps: {
     return list;
   }
 
-  async function listMessages(params: { userId: UserId; convoId: ConversationId }) {
-    await ensureUser(params.userId);
+  async function listMessages(params: { userId: UserId; convoId: ConversationId; userName?: string }) {
+    await ensureUser(params.userId, params.userName);
     const convo = await deps.convosRepo.get(params.convoId);
     if (!convo || !convo.members.includes(params.userId)) throw notFound('not found');
     return convo.messages;
   }
 
-  async function sendMessage(params: { userId: UserId; convoId: ConversationId; text: string }) {
-    await ensureUser(params.userId);
+  async function sendMessage(params: { userId: UserId; convoId: ConversationId; text: string; userName?: string }) {
+    await ensureUser(params.userId, params.userName);
     const convo = await deps.convosRepo.get(params.convoId);
     if (!convo || !convo.members.includes(params.userId)) throw notFound('not found');
 
@@ -86,9 +85,9 @@ export function makeUseCases(deps: {
     return msg;
   }
 
-  async function getMe(params: { userId?: UserId }) {
-    if (!params.userId) throw unauthorized('missing x-user-id');
-    const u = await ensureUser(params.userId);
+  async function getMe(params: { userId?: UserId; userName?: string }) {
+    if (!params.userId) throw unauthorized('missing Authorization or x-user-id');
+    const u = await ensureUser(params.userId, params.userName);
     return u;
   }
 

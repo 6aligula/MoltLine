@@ -12,6 +12,14 @@ export function makeInMemoryRepos(seed?: { users?: User[] }) {
     async get(userId) {
       return users.get(userId) ?? null;
     },
+    async ensureExists(userId, name) {
+      let u = users.get(userId);
+      if (!u) {
+        u = { userId, name: name ?? userId };
+        users.set(userId, u);
+      }
+      return u;
+    },
     async list() {
       return Array.from(users.values());
     },

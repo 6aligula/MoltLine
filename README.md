@@ -373,6 +373,7 @@ El sistema incluye dos usuarios pre-cargados para testing:
 
 ## 🔗 Links Útiles
 
+- [Instrucciones para app iOS](./docs/IOS_APP.md)
 - [Deploy del Frontend](./web/README-deploy.md)
 
 ---

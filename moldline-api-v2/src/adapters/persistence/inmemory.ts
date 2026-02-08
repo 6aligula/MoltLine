@@ -1,6 +1,7 @@
 import type { Conversation, Message, User } from '../../domain/entities';
 import type { ConversationId, UserId } from '../../domain/types';
 import type { ConversationsRepository, UsersRepository } from '../../ports/repositories';
+import { deterministicDmId, cryptoRandomId } from './convo-id';
 
 export function makeInMemoryRepos(seed?: { users?: User[] }) {
   const users = new Map<UserId, User>();
@@ -36,10 +37,17 @@ export function makeInMemoryRepos(seed?: { users?: User[] }) {
 
     async getOrCreateDM(a, b) {
       const key = [a, b].sort().join(':');
-      for (const c of conversations.values()) {
-        if (c.kind === 'dm' && c.key === key) return c;
+      const convoId = deterministicDmId(a, b);
+      let existing = conversations.get(convoId);
+      if (!existing) {
+        for (const c of conversations.values()) {
+          if (c.kind === 'dm' && c.key === key) {
+            existing = c;
+            break;
+          }
+        }
       }
-      const convoId = cryptoRandomId();
+      if (existing && existing.kind === 'dm') return existing;
       const convo: Conversation = { convoId, kind: 'dm', key, members: [a, b], messages: [] };
       conversations.set(convoId, convo);
       return convo;
@@ -75,11 +83,4 @@ export function makeInMemoryRepos(seed?: { users?: User[] }) {
   };
 
   return { usersRepo, convosRepo };
-}
-
-function cryptoRandomId(size = 12): string {
-  // base64url is fine for MVP
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const crypto = require('node:crypto') as typeof import('node:crypto');
-  return crypto.randomBytes(size).toString('base64url');
 }

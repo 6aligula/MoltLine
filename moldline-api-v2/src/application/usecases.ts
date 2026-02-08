@@ -18,10 +18,12 @@ export function makeUseCases(deps: {
   }
 
   async function createDM(params: { userId: UserId; otherUserId: UserId; userName?: string }) {
+    if (!params.otherUserId || typeof params.otherUserId !== 'string') throw badRequest('otherUserId required');
     await ensureUser(params.userId, params.userName);
     await ensureUser(params.otherUserId);
     const convo = await deps.convosRepo.getOrCreateDM(params.userId, params.otherUserId);
-    return { convoId: convo.convoId };
+    // Misma forma que cada item de GET /conversations para decodificar igual en el cliente
+    return { convoId: convo.convoId, kind: convo.kind, members: convo.members };
   }
 
   async function createRoom(params: { userId: UserId; name: string; userName?: string }) {

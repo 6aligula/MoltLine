@@ -25,7 +25,7 @@ MoltLine/
 │   ├── src/
 │   │   ├── App.tsx       # Interfaz del chat
 │   │   └── lib/          # api.ts, ws.ts — cliente API y WebSocket
-│   └── .env              # VITE_API_BASE_URL, VITE_WS_URL (crear en local)
+│   └── .env              # VITE_API_BASE_URL, VITE_WS_URL, VITE_AUTH_BASE_URL
 │
 ├── moldline-api-v2/      # Backend (TypeScript + Arquitectura Hexagonal)
 │   ├── deploy-cloudrun.sh  # Deploy a Google Cloud Run
@@ -112,23 +112,26 @@ Tras el deploy, el script muestra la URL de la API (ej. `https://moldline-api-xx
 
 ### Conectar el frontend a la API
 
-El frontend usa dos variables en `web/.env`:
+El frontend usa tres variables en `web/.env`:
 
 | Variable | Descripción |
 |----------|-------------|
 | `VITE_API_BASE_URL` | URL base de la API (ej. `https://moldline-api-xxx.run.app`) |
 | `VITE_WS_URL` | URL base del WebSocket (ej. `wss://xxx.run.app`; el código añade `/ws`) |
+| `VITE_AUTH_BASE_URL` | URL base de Auth API (ej. `https://moldline-auth-xxx.run.app`) |
 
 **Ejemplo para desarrollo local:**
 ```env
 VITE_API_BASE_URL=http://localhost:18000
 VITE_WS_URL=ws://localhost:18000
+VITE_AUTH_BASE_URL=http://localhost:8080
 ```
 
 **Ejemplo para API en Cloud Run:**
 ```env
 VITE_API_BASE_URL=https://moldline-api-xxx.run.app
 VITE_WS_URL=wss://moldline-api-xxx.run.app
+VITE_AUTH_BASE_URL=https://moldline-auth-xxx.run.app
 ```
 
 Sustituye `moldline-api-xxx.run.app` por la URL que muestra el script de deploy. Las URLs se incrustan en el build; si cambias la API, hay que recompilar el frontend.
@@ -296,6 +299,7 @@ PORT=18000
 ```env
 VITE_API_BASE_URL=http://localhost:18000
 VITE_WS_URL=ws://localhost:18000
+VITE_AUTH_BASE_URL=http://localhost:8080
 ```
 
 ### Docker Compose

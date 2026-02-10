@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import { apiFetch } from './lib/api';
 import { connectWs } from './lib/ws';
+import { listUsers as listAuthUsers, login, register } from './lib/auth';
 
 type Conversation = { convoId: string; kind: 'dm' | 'room'; members: string[] };
 
@@ -21,6 +22,9 @@ function fmtTs(ts: number) {
 export default function App() {
   const [token, setToken] = useState<string>('');
   const [me, setMe] = useState<{ userId: string; name?: string } | null>(null);
+  const [authName, setAuthName] = useState<string>('');
+  const [authPassword, setAuthPassword] = useState<string>('');
+  const [authBusy, setAuthBusy] = useState<boolean>(false);
   const [connected, setConnected] = useState(false);
   const [users, setUsers] = useState<Array<{ userId: string; name: string }>>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -38,7 +42,11 @@ export default function App() {
   );
 
   async function refreshUsers() {
-    const u = await apiFetch<Array<{ userId: string; name: string }>>('/users');
+    if (!token) {
+      setUsers([]);
+      return;
+    }
+    const u = await listAuthUsers(token);
     setUsers(u);
   }
 
@@ -64,17 +72,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    refreshUsers().catch(e => setError(String(e.message || e)));
-  }, []);
-
-  useEffect(() => {
     if (!token) {
       setConnected(false);
       setMe(null);
+      setConversations([]);
+      setMessages([]);
       return;
     }
     setError(null);
     refreshMe().catch(e => setError(String(e.message || e)));
+    refreshUsers().catch(e => setError(String(e.message || e)));
     refreshConversations().catch(e => setError(String(e.message || e)));
 
     const myId = ++connectionIdRef.current;
@@ -118,6 +125,7 @@ export default function App() {
   }, [activeConvoId, token]);
 
   async function createDM(otherUserId: string) {
+    if (!token) return;
     setError(null);
     const out = await apiFetch<{ convoId: string }>('/dm', {
       method: 'POST',
@@ -129,7 +137,7 @@ export default function App() {
   }
 
   async function send() {
-    if (!activeConvoId) return;
+    if (!activeConvoId || !token) return;
     const t = text.trim();
     if (!t) return;
     setText('');
@@ -145,23 +153,66 @@ export default function App() {
     });
   }
 
+  async function submitAuth(mode: 'login' | 'register') {
+    if (!authName.trim() || !authPassword.trim()) return;
+    setError(null);
+    setAuthBusy(true);
+    try {
+      const out = mode === 'login'
+        ? await login(authName.trim(), authPassword)
+        : await register(authName.trim(), authPassword);
+      setToken(out.token);
+      localStorage.setItem('moldline.jwt', out.token);
+      setAuthPassword('');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  function logout() {
+    setToken('');
+    setMe(null);
+    setConnected(false);
+    setUsers([]);
+    setConversations([]);
+    setMessages([]);
+    setActiveConvoId(null);
+    localStorage.removeItem('moldline.jwt');
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) wsRef.current.close();
+  }
+
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: 16 }}>
       <h2>MoldLine chat (MVP)</h2>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          JWT:
-          <input
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="paste Bearer token (without 'Bearer ')"
-            style={{ minWidth: 360 }}
-          />
-        </label>
-        <button onClick={() => localStorage.setItem('moldline.jwt', token)}>Save token</button>
+        <input
+          value={authName}
+          onChange={(e) => setAuthName(e.target.value)}
+          placeholder="username"
+        />
+        <input
+          type="password"
+          value={authPassword}
+          onChange={(e) => setAuthPassword(e.target.value)}
+          placeholder="password"
+        />
+        <button onClick={() => submitAuth('login').catch(e => setError(String(e.message || e)))} disabled={authBusy}>
+          Login
+        </button>
+        <button onClick={() => submitAuth('register').catch(e => setError(String(e.message || e)))} disabled={authBusy}>
+          Register
+        </button>
+        <button onClick={logout} disabled={!token}>
+          Logout
+        </button>
+        <span style={{ opacity: 0.8 }}>
+          {me ? `Session: ${me.userId}` : 'No session'}
+        </span>
         <span style={{ opacity: 0.8 }}>WS: {connected ? 'connected' : 'disconnected'}</span>
-        <button onClick={() => refreshConversations()}>Refresh convos</button>
+        <button onClick={() => refreshConversations().catch(e => setError(String(e.message || e)))} disabled={!token}>
+          Refresh convos
+        </button>
         {error ? <span style={{ color: 'salmon' }}>{error}</span> : null}
       </div>
 

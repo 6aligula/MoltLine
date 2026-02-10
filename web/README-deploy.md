@@ -61,8 +61,9 @@ web/
 Crea un archivo `.env.local` (opcional):
 
 ```env
-VITE_API_URL=https://api.moldline.space
-VITE_WS_URL=ws://localhost:8787
+VITE_API_BASE_URL=https://api.moldline.space
+VITE_WS_URL=wss://api.moldline.space
+VITE_AUTH_BASE_URL=https://auth.moldline.space
 ```
 
 ### Endpoints
@@ -70,7 +71,8 @@ VITE_WS_URL=ws://localhost:8787
 Por defecto, la aplicación conecta a:
 
 - **API REST**: Backend API v2
-- **WebSocket**: Backend chat-web (puerto 8787)
+- **WebSocket**: Backend API v2 (`/ws?token=...`)
+- **Auth API**: login/register/users
 
 ## 📦 Deploy
 

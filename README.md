@@ -145,7 +145,7 @@ GET /health
 # Verifica estado del servidor
 
 GET /me
-# Headers: x-user-id
+# Headers: Authorization: Bearer <jwt>
 # Retorna información del usuario actual
 
 GET /users
@@ -155,7 +155,7 @@ GET /users
 #### Conversaciones Directas (DM)
 ```http
 POST /dm
-# Headers: x-user-id
+# Headers: Authorization: Bearer <jwt>
 # Body: { "otherUserId": "string" }
 # Crea o recupera una conversación 1:1
 ```
@@ -163,31 +163,31 @@ POST /dm
 #### Salas de Chat
 ```http
 POST /rooms
-# Headers: x-user-id
+# Headers: Authorization: Bearer <jwt>
 # Body: { "name": "string" }
 # Crea una nueva sala
 
 POST /rooms/:roomId/join
-# Headers: x-user-id
+# Headers: Authorization: Bearer <jwt>
 # Unirse a una sala existente
 
 GET /rooms
-# Headers: x-user-id
+# Headers: Authorization: Bearer <jwt>
 # Lista salas disponibles
 ```
 
 #### Mensajes
 ```http
 GET /conversations
-# Headers: x-user-id
+# Headers: Authorization: Bearer <jwt>
 # Lista todas las conversaciones del usuario
 
 GET /conversations/:convoId/messages
-# Headers: x-user-id
+# Headers: Authorization: Bearer <jwt>
 # Lista mensajes de una conversación
 
 POST /conversations/:convoId/messages
-# Headers: x-user-id
+# Headers: Authorization: Bearer <jwt>
 # Body: { "text": "string" }
 # Envía un mensaje
 ```
@@ -196,7 +196,7 @@ POST /conversations/:convoId/messages
 
 #### Conexión
 ```javascript
-const ws = new WebSocket('ws://localhost:18000/ws?userId=<userId>');
+const ws = new WebSocket('ws://localhost:18000/ws?token=<jwt>');
 
 ws.onmessage = (event) => {
   const { type, data } = JSON.parse(event.data);
@@ -313,7 +313,7 @@ networks:
 Para verificar la API:
 ```bash
 curl http://localhost:18000/health
-curl -H "x-user-id: a" http://localhost:18000/conversations
+curl -H "Authorization: Bearer <jwt>" http://localhost:18000/conversations
 ```
 
 ## 📝 Estado del Proyecto
@@ -330,7 +330,7 @@ curl -H "x-user-id: a" http://localhost:18000/conversations
 - Cifrado end-to-end
 - Base de datos persistente (SQLite/Postgres)
 - Moderación y anti-spam
-- Autenticación robusta (JWT/OAuth)
+- OAuth/roles avanzados
 - Notificaciones push
 - Historial de mensajes paginado
 - Envío de archivos/multimedia
@@ -512,4 +512,3 @@ curl https://chat.moldline.space
 - **Nginx**: reverse proxy + SSL (Certbot/Let's Encrypt)
 - **Docker**: API (chat-api) + Web (chat-web)
 - **Red**: `web-proxy` para que Nginx alcance los contenedores
-

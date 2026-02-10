@@ -19,7 +19,8 @@ function fmtTs(ts: number) {
 }
 
 export default function App() {
-  const [userId, setUserId] = useState<string>('a');
+  const [token, setToken] = useState<string>('');
+  const [me, setMe] = useState<{ userId: string; name?: string } | null>(null);
   const [connected, setConnected] = useState(false);
   const [users, setUsers] = useState<Array<{ userId: string; name: string }>>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -42,27 +43,43 @@ export default function App() {
   }
 
   async function refreshConversations() {
-    const c = await apiFetch<Conversation[]>('/conversations', { userId });
+    const c = await apiFetch<Conversation[]>('/conversations', { token });
     setConversations(c);
     if (!activeConvoId && c[0]) setActiveConvoId(c[0].convoId);
   }
 
+  async function refreshMe() {
+    const out = await apiFetch<{ userId: string; name?: string }>('/me', { token });
+    setMe(out);
+  }
+
   async function refreshMessages(convoId: string) {
-    const m = await apiFetch<Message[]>(`/conversations/${convoId}/messages`, { userId });
+    const m = await apiFetch<Message[]>(`/conversations/${convoId}/messages`, { token });
     setMessages(m);
   }
+
+  useEffect(() => {
+    const saved = localStorage.getItem('moldline.jwt') || '';
+    if (saved) setToken(saved);
+  }, []);
 
   useEffect(() => {
     refreshUsers().catch(e => setError(String(e.message || e)));
   }, []);
 
   useEffect(() => {
+    if (!token) {
+      setConnected(false);
+      setMe(null);
+      return;
+    }
     setError(null);
+    refreshMe().catch(e => setError(String(e.message || e)));
     refreshConversations().catch(e => setError(String(e.message || e)));
 
     const myId = ++connectionIdRef.current;
     const ws = connectWs({
-      userId,
+      token,
       onOpen: () => {
         if (connectionIdRef.current !== myId) {
           ws.close();
@@ -92,19 +109,19 @@ export default function App() {
       if (ws.readyState === WebSocket.OPEN) ws.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [token]);
 
   useEffect(() => {
-    if (!activeConvoId) return;
+    if (!activeConvoId || !token) return;
     refreshMessages(activeConvoId).catch(e => setError(String(e.message || e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConvoId, userId]);
+  }, [activeConvoId, token]);
 
   async function createDM(otherUserId: string) {
     setError(null);
     const out = await apiFetch<{ convoId: string }>('/dm', {
       method: 'POST',
-      userId,
+      token,
       body: JSON.stringify({ otherUserId }),
     });
     await refreshConversations();
@@ -119,7 +136,7 @@ export default function App() {
     setError(null);
     const msg = await apiFetch<Message>(`/conversations/${activeConvoId}/messages`, {
       method: 'POST',
-      userId,
+      token,
       body: JSON.stringify({ text: t }),
     });
     setMessages(prev => {
@@ -133,13 +150,16 @@ export default function App() {
       <h2>MoldLine chat (MVP)</h2>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label>
-          User:
-          <select value={userId} onChange={(e) => setUserId(e.target.value)} style={{ marginLeft: 8 }}>
-            <option value="a">a</option>
-            <option value="b">b</option>
-          </select>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          JWT:
+          <input
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="paste Bearer token (without 'Bearer ')"
+            style={{ minWidth: 360 }}
+          />
         </label>
+        <button onClick={() => localStorage.setItem('moldline.jwt', token)}>Save token</button>
         <span style={{ opacity: 0.8 }}>WS: {connected ? 'connected' : 'disconnected'}</span>
         <button onClick={() => refreshConversations()}>Refresh convos</button>
         {error ? <span style={{ color: 'salmon' }}>{error}</span> : null}
@@ -154,7 +174,7 @@ export default function App() {
             {users.map(u => (
               <li key={u.userId}>
                 {u.userId} — {u.name}{' '}
-                {u.userId !== userId ? (
+                {u.userId !== me?.userId ? (
                   <button onClick={() => createDM(u.userId)} style={{ marginLeft: 8 }}>
                     DM
                   </button>

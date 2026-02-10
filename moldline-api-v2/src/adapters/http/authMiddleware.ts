@@ -20,14 +20,12 @@ declare global {
 }
 
 /**
- * Auth: JWT (Bearer) como fuente de verdad; fallback x-user-id para compatibilidad.
+ * Auth: solo JWT Bearer.
  * Si hay Authorization: Bearer <token>, valida con JWT_SECRET y pone req.userId (sub) y req.userName (name).
- * Si no, usa x-user-id como req.userId (sin userName).
  */
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
-  const legacyUserId = req.header('x-user-id');
 
   if (token && JWT_SECRET && JWT_SECRET.length >= 32) {
     try {
@@ -39,11 +37,6 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
     } catch {
       // Token inválido o expirado; no ponemos userId (siguiente ruta protegida devolverá 401)
     }
-  }
-
-  if (legacyUserId) {
-    req.userId = legacyUserId;
-    req.userName = undefined;
   }
   next();
 }

@@ -29,7 +29,7 @@ export function buildServer(deps: {
     }
 
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'content-type,x-user-id,authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'content-type,authorization');
 
     if (req.method === 'OPTIONS') {
       res.status(204).end();
@@ -63,7 +63,7 @@ export function buildServer(deps: {
   app.post('/dm', async (req, res, next) => {
     try {
       const userId = req.userId;
-      if (!userId) throw new AppError('missing Authorization or x-user-id', 401);
+      if (!userId) throw new AppError('missing Authorization Bearer token', 401);
       const { otherUserId } = req.body || {};
       const out = await deps.usecases.createDM({ userId, otherUserId, userName: req.userName });
       res.json(out);
@@ -75,7 +75,7 @@ export function buildServer(deps: {
   app.post('/rooms', async (req, res, next) => {
     try {
       const userId = req.userId;
-      if (!userId) throw new AppError('missing Authorization or x-user-id', 401);
+      if (!userId) throw new AppError('missing Authorization Bearer token', 401);
       const { name } = req.body || {};
       const out = await deps.usecases.createRoom({ userId, name, userName: req.userName });
       res.json(out);
@@ -87,7 +87,7 @@ export function buildServer(deps: {
   app.post('/rooms/:roomId/join', async (req, res, next) => {
     try {
       const userId = req.userId;
-      if (!userId) throw new AppError('missing Authorization or x-user-id', 401);
+      if (!userId) throw new AppError('missing Authorization Bearer token', 401);
       const out = await deps.usecases.joinRoom({ userId, roomId: req.params.roomId, userName: req.userName });
       res.json(out);
     } catch (e) {
@@ -98,7 +98,7 @@ export function buildServer(deps: {
   app.get('/rooms', async (req, res, next) => {
     try {
       const userId = req.userId;
-      if (!userId) throw new AppError('missing Authorization or x-user-id', 401);
+      if (!userId) throw new AppError('missing Authorization Bearer token', 401);
       res.json(await deps.usecases.listRooms({ userId, userName: req.userName }));
     } catch (e) {
       next(e);
@@ -108,7 +108,7 @@ export function buildServer(deps: {
   app.get('/conversations', async (req, res, next) => {
     try {
       const userId = req.userId;
-      if (!userId) throw new AppError('missing Authorization or x-user-id', 401);
+      if (!userId) throw new AppError('missing Authorization Bearer token', 401);
       res.json(await deps.usecases.listConversations({ userId, userName: req.userName }));
     } catch (e) {
       next(e);
@@ -118,7 +118,7 @@ export function buildServer(deps: {
   app.get('/conversations/:convoId/messages', async (req, res, next) => {
     try {
       const userId = req.userId;
-      if (!userId) throw new AppError('missing Authorization or x-user-id', 401);
+      if (!userId) throw new AppError('missing Authorization Bearer token', 401);
       res.json(await deps.usecases.listMessages({ userId, convoId: req.params.convoId, userName: req.userName }));
     } catch (e) {
       next(e);
@@ -128,7 +128,7 @@ export function buildServer(deps: {
   app.post('/conversations/:convoId/messages', async (req, res, next) => {
     try {
       const userId = req.userId;
-      if (!userId) throw new AppError('missing Authorization or x-user-id', 401);
+      if (!userId) throw new AppError('missing Authorization Bearer token', 401);
       const { text } = req.body || {};
       res.json(await deps.usecases.sendMessage({ userId, convoId: req.params.convoId, text, userName: req.userName }));
     } catch (e) {
@@ -153,7 +153,6 @@ export function buildServer(deps: {
   wss.on('connection', (ws, req) => {
     const url = new URL(req.url || '/', `http://${req.headers.host}`);
     const token = url.searchParams.get('token');
-    const legacyUserId = url.searchParams.get('userId');
     let userId: string | null = null;
     if (token && process.env.JWT_SECRET && process.env.JWT_SECRET.length >= 32) {
       try {
@@ -163,9 +162,8 @@ export function buildServer(deps: {
         // token inválido
       }
     }
-    if (!userId && legacyUserId) userId = legacyUserId;
     if (!userId) {
-      ws.close(1008, 'missing userId or valid token');
+      ws.close(1008, 'missing valid token');
       return;
     }
     deps.realtime.registerUserSocket(userId, ws as any);

@@ -7,9 +7,7 @@ Reglas para agentes que modifiquen `moldline-api-v2`.
 - No romper contratos REST/WS sin actualizar docs y clientes.
 - `POST /dm` devuelve `200` tanto en create como en get-or-create.
 - DM debe mantener `convoId` determinista por par de usuarios.
-- Auth compatible:
-  - preferido `Authorization: Bearer <jwt>`
-  - fallback `x-user-id`
+- Auth solo `Authorization: Bearer <jwt>`.
 - Eventos WS estables: `hello`, `message`.
 
 ## Arquitectura

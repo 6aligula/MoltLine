@@ -16,29 +16,35 @@ npm run dev
 curl -s http://localhost:18000/health
 ```
 
-## 3) Flujo DM (x-user-id)
+## 3) Flujo DM (Bearer JWT)
+
+Define token (ejemplo):
+
+```bash
+TOKEN='<jwt>'
+```
 
 Crear DM:
 
 ```bash
-curl -s -X POST http://localhost:18000/dm -H 'content-type: application/json' -H 'x-user-id: a' -d '{"otherUserId":"b"}'
+curl -s -X POST http://localhost:18000/dm -H 'content-type: application/json' -H "authorization: Bearer $TOKEN" -d '{"otherUserId":"b"}'
 ```
 
 Listar conversaciones:
 
 ```bash
-curl -s http://localhost:18000/conversations -H 'x-user-id: a'
+curl -s http://localhost:18000/conversations -H "authorization: Bearer $TOKEN"
 ```
 
 Enviar mensaje:
 
 ```bash
-curl -s -X POST http://localhost:18000/conversations/<convoId>/messages -H 'content-type: application/json' -H 'x-user-id: a' -d '{"text":"hola"}'
+curl -s -X POST http://localhost:18000/conversations/<convoId>/messages -H 'content-type: application/json' -H "authorization: Bearer $TOKEN" -d '{"text":"hola"}'
 ```
 
 ## 4) WS
 
-Conectar `ws://localhost:18000/ws?userId=a`, validar eventos `hello` y `message`.
+Conectar `ws://localhost:18000/ws?token=<jwt>`, validar eventos `hello` y `message`.
 
 ## 5) Errores minimos
 

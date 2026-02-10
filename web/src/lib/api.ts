@@ -12,11 +12,11 @@ export function apiUrl(path: string) {
   return `${base}${p}`;
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit & { userId?: string }) {
-  const userId = (init as any)?.userId as string | undefined;
+export async function apiFetch<T>(path: string, init?: RequestInit & { token?: string }) {
+  const token = (init as any)?.token as string | undefined;
   const headers = new Headers(init?.headers || {});
   headers.set('content-type', 'application/json');
-  if (userId) headers.set('x-user-id', userId);
+  if (token) headers.set('authorization', `Bearer ${token}`);
 
   const res = await fetch(apiUrl(path), {
     ...init,

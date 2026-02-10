@@ -3,8 +3,7 @@
 ## Conexion
 
 - Path: `/ws`
-- Auth preferida: `?token=<jwt>`
-- Fallback legacy: `?userId=<userId>`
+- Auth requerida: `?token=<jwt>`
 - Sin identidad valida: close `1008`
 
 ## Eventos (server -> client)

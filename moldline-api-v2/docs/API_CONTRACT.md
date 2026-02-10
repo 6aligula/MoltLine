@@ -4,8 +4,7 @@ Base local: `http://localhost:18000`
 
 ## Auth
 
-- Preferido: `Authorization: Bearer <jwt>`
-- Legacy: `x-user-id`
+- Requerido: `Authorization: Bearer <jwt>`
 - Endpoints protegidos sin identidad valida -> `401`
 
 ## Endpoints

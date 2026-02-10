@@ -88,7 +88,7 @@ export function makeUseCases(deps: {
   }
 
   async function getMe(params: { userId?: UserId; userName?: string }) {
-    if (!params.userId) throw unauthorized('missing Authorization or x-user-id');
+    if (!params.userId) throw unauthorized('missing Authorization Bearer token');
     const u = await ensureUser(params.userId, params.userName);
     return u;
   }
